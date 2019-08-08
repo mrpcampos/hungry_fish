@@ -32,8 +32,10 @@ class tests:
         self.fishes_images.append(self.blue_fish_image)
         self.fishes_images.append(self.pink_fish_image)
 
-        Collision_calculator.cache_image(player_fish_image)
-        [Collision_calculator.cache_image(fish_image) for fish_image in self.fishes_images]
+        self.collision_calculator = Collision_calculator.Collision_calculator()
+
+        self.collision_calculator.cache_image(player_fish_image)
+        [self.collision_calculator.cache_image(fish_image) for fish_image in self.fishes_images]
 
         self.brainless_fishes = []
         self.start_population()
@@ -42,7 +44,7 @@ class tests:
 
     def start_population(self):
         fish1 = self.generate_fish(pos_y=self.window.height // 2 + 80, pos_x=self.window.width // 2 + 100,
-                                   going_right=False, vel=0, scale=0.5,
+                                   going_right=False, vel=0, scale=1,
                                    fish_image=self.blue_fish_image)
 
         fish2 = self.generate_fish(pos_y=self.window.height // 2 - 80, pos_x=self.window.width // 2 + 100,
@@ -92,7 +94,7 @@ class tests:
 
     def check_and_handle_collisions(self):
         for fish in self.brainless_fishes:
-            if Collision_calculator.is_colliding(self.player, fish):
+            if self.collision_calculator.is_colliding(self.player, fish):
                 fish.color = (255, 0, 0)
 
     def remove_dead_bodies(self):

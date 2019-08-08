@@ -6,6 +6,15 @@ import pyglet
 
 
 class HungryFish:
+
+    _game_started = False
+    _game_score = 0
+    _game_highest_score = 0
+
+    _player_posx = 350
+    _player_posy = 350
+    _player_scale = 0.9
+
     def __init__(self):
         resource.path = ['resources']
 
@@ -13,10 +22,14 @@ class HungryFish:
                                icon_image=self.preload_image('icon_photo.jpg'),
                                game=self, resizable=False)
 
+        self.collision_calculator = Collision_calculator.Collision_calculator()
+
+        # Mídia e colisão
+
         self.player_fish_image = self.preload_image('orange-skin_fish.png')
-        player_posx = self.window.width // 2
-        player_posy = self.window.height // 2
-        self.player = self.window.new_player_sprite(self.player_fish_image, x=player_posx, y=player_posy, scale=0.7)
+        self._player_posx = self.window.width // 2
+        self.player_posy = self.window.height // 2
+        self.player = self.window.new_player_sprite(self.player_fish_image, x=self._player_posx, y=self.player_posy, scale=self._player_scale)
 
         self.fishes_images = []
         self.yellow_fish_image = self.preload_image('yellow_fish.png')
@@ -26,13 +39,20 @@ class HungryFish:
         self.fishes_images.append(self.blue_fish_image)
         self.fishes_images.append(self.pink_fish_image)
 
-        Collision_calculator.cache_image(self.player_fish_image)
-        [Collision_calculator.cache_image(fish_image) for fish_image in self.fishes_images]
+        self.collision_calculator.cache_image(self.player_fish_image)
+        [self.collision_calculator.cache_image(fish_image) for fish_image in self.fishes_images]
 
-        self.world_seed = None
+        self.world_seed = 3
         self.brainless_fishes = []
 
         self.music = resource.media('secunda.wav', streaming=False)
+
+        # Labels e armazenamento de informação
+
+        self.score_text_template = 'Score: {}'
+        self.score_label = self.window.new_batched_label(self.score_text_template.format(0), self.window.width - 2, 2, anchor_x='right', bold=True)
+        self.highest_score_text_template = 'Highest Score: {}'
+        self.highest_score_label = self.window.new_batched_label(self.highest_score_text_template.format(self._game_highest_score), self.window.width - 2, self.window.height - 2, anchor_x='right', anchor_y='top', bold=True)
 
         pyglet.app.run()
 
@@ -44,20 +64,25 @@ class HungryFish:
             return None
 
     def start_game(self):
-        self.window.set_player(self.player)
+        if not self._game_started:
+            self.window.set_player(self.player)
 
-        if self.world_seed is None:
-            random.seed()
-        else:
-            random.seed(self.world_seed)
+            if self.world_seed is None:
+                random.seed()
+            else:
+                random.seed(self.world_seed)
 
-        self.music.play()
+            self.music.play()
 
-        self.start_population()
+            self.start_population()
+            self._game_started = True
 
     def respaw(self):
         self.exclude_player()
-        self.player = self.window.new_player_sprite(self.player_fish_image, x=self.window.width // 2, y=self.window.height // 2, scale=0.7)
+        if self._game_score > self._game_highest_score:
+            self._game_highest_score = self._game_score
+        self._game_score = 0
+        self.player = self.window.new_player_sprite(self.player_fish_image, x=self.window.width // 2, y=self.window.height // 2, scale=self._player_scale)
         self.window.set_player(self.player)
 
     def start_population(self):
@@ -90,7 +115,7 @@ class HungryFish:
         for i in range(0, 3):
             self.brainless_fishes.append(self.add_random_generated_fish())
 
-    def control_population(self, dt):
+    def control_population(self):
         for fish in self.brainless_fishes:
             if fish.is_dead() or (fish.going_right and fish.x > self.window.width + fish.width) or (
                     (not fish.going_right) and fish.x < -fish.width):
@@ -115,7 +140,7 @@ class HungryFish:
         fish = self.generate_fish(random.randint(0, self.window.height), going_right,
                                   random.randint(80, 175) / 100, fish_image,
                                   random.randint(0, self.window.width // 3),
-                                  scale=round(random.uniform(0.5, 1.6), ndigits=2))
+                                  scale=round(random.uniform(0.85, 1.2), ndigits=3))
         self.brainless_fishes.append(fish)
         return fish
 
@@ -129,14 +154,16 @@ class HungryFish:
     def update(self, dt):
         self.player.update(dt)
         [fish.update(dt) for fish in self.brainless_fishes]
-        self.control_population(dt)
+        self.control_population()
         self.check_and_handle_collisions()
         self.recicle_dead_bodies()
+        self.update_labels()
 
     def check_and_handle_collisions(self):
         for fish in self.brainless_fishes:
-            if Collision_calculator.is_colliding(self.player, fish):
-                self.player.collide(fish)
+            if self.collision_calculator.is_colliding(self.player, fish):
+                if self.player.collide(fish):
+                    self._game_score += 1
                 fish.collide(self.player)
 
     def recicle_dead_bodies(self):
@@ -151,7 +178,13 @@ class HungryFish:
 
     def exclude_player(self):
         self.player.batch = None
+        self.window.set_player(None)
         self.player = None
+
+    def update_labels(self):
+        self.score_label.text = self.score_text_template.format(self._game_score)
+        self.highest_score_label.text = self.highest_score_text_template.format(self._game_highest_score)
+
 
 if __name__ == "__main__":
     HungryFish()

@@ -19,6 +19,9 @@ class Fish(pyglet.sprite.Sprite):
 
         self.dead = False
 
+        self._facing_right = False
+        self._facing_left = True
+
         self.going_up = False
         self._going_right = False
         self.going_down = False
@@ -50,18 +53,40 @@ class Fish(pyglet.sprite.Sprite):
         self._vel_max_x = vel * self.width
 
     @property
+    def facing_right(self):
+        return self._facing_right
+
+    @facing_right.setter
+    def facing_right(self, facing_right):
+        if not self.facing_right:
+            if facing_right:
+                self.x += self.width
+                self.scale_x *= -1
+        self._facing_right = facing_right
+        self._facing_left = not facing_right
+
+    @property
+    def facing_left(self):
+        return self._facing_left
+
+    @facing_left.setter
+    def facing_left(self, facing_left):
+        if not self.facing_left:
+            if facing_left:
+                self.x -= self.width
+                self.scale_x *= -1
+        self._facing_left = facing_left
+        self._facing_right = not facing_left
+
+    @property
     def going_right(self):
         return self._going_right
 
     @going_right.setter
     def going_right(self, going_right):
-        if going_right != self._going_right:
-            if going_right:
-                self.x += self.width
-            else:
-                self.x -= self.width
-            self.scale_x *= -1
         self._going_right = going_right
+        if going_right:
+            self.facing_right = True
 
     @property
     def going_left(self):
@@ -70,6 +95,8 @@ class Fish(pyglet.sprite.Sprite):
     @going_left.setter
     def going_left(self, going_left):
         self._going_left = going_left
+        if going_left:
+            self.facing_left = going_left
 
     def update(self, dt):
         if self.going_right:
@@ -79,12 +106,19 @@ class Fish(pyglet.sprite.Sprite):
         self.y += (self._vel_max_y * dt) if self.going_up else (-self._vel_max_y * dt) if self.going_down else 0
 
     def collide(self, other_fish):
+        '''
+
+        :param other_fish: Peixe com quem se está colidindo
+        :return: True se saiu "beneficiado" do encontro
+        '''
         if not other_fish.is_dead() and not self.is_dead():
             if other_fish.scale <= self.scale:
-                self.multiply_scale(1.05)
+                self.scale += 0.03
+                return True
             else:
                 self.color = (255, 0, 0)
                 self.kill()
+                return False
 
     def multiply_scale(self, scale):
         """

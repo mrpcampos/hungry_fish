@@ -1,2 +1,1 @@
- - Arrumar para o peixe manter o lado que virou por ultimo, invéz de voltar para esquerda quando n estiver se movendo
- - Arrumar a colisão para proporção da escala, não só para orientação dela (-1 para virar a imagem ja funciona, mas imagens aumentadas n)
+ - Arrumar a colisão para proporção da escala, não só para orientação dela (-1 para virar a imagem ja funciona, mas imagens aumentadas ou diminuidas n)

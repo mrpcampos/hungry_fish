@@ -1,4 +1,3 @@
-import pyglet
 from pyglet.gl import *
 from ctypes import *
 
@@ -57,88 +56,86 @@ class Retangle:
                 return Retangle(x, y, x + sprite.width, y + sprite.height)
 
 
-image_data_cache = {}
+class Collision_calculator:
+    image_data_cache = {}
 
+    def cache_image(self, image):
+        if image not in self.image_data_cache:
+            image_data = image.get_image_data().get_data('A', image.width)
+            self.image_data_cache[image] = image_data
 
-def cache_image(sprite):
-    if isinstance(sprite, pyglet.sprite.Sprite):
-        get_image(sprite)
+    def is_colliding(self, game_object1, game_object2):
+        '''Informa se dois sprites se encostam.
+        Dois sprites estão se encostando se dois pixeis não vazios ocuparem o mesmo local'''
 
+        # Broad fase: Ver se os retangulos dos sprites se encontram
+        retangulo1, retangulo2 = Retangle.from_sprite(game_object1), Retangle.from_sprite(game_object2)
+        if retangulo1.check_if_intersects(retangulo2):
+            # Gera um retângulo para a área sobreposta pelos dois
+            intersection_retangle = retangulo1.retangle_from_intersected_area(retangulo2)
 
-def is_colliding(game_object1, game_object2):
-    '''Informa se dois sprites se encostam.
-    Dois sprites estão se encostando se dois pixeis não vazios ocuparem o mesmo local'''
+            # Ve em que ponto das imagens esse novo retangulo começa
+            offx1, offy1, o1x, o1y = self.get_intersection_offsets(intersection_retangle, retangulo1, game_object1)
+            offx2, offy2, o2x, o2y = self.get_intersection_offsets(intersection_retangle, retangulo2, game_object2)
 
-    # Broad fase: Ver se os retangulos dos sprites se encontram
-    retangulo1, retangulo2 = Retangle.from_sprite(game_object1), Retangle.from_sprite(game_object2)
-    if retangulo1.check_if_intersects(retangulo2):
-        # Gera um retângulo para a área sobreposta pelos dois
-        intersection_retangle = retangulo1.retangle_from_intersected_area(retangulo2)
+            # Pega as informações dos pixels da imagem
+            d1, d2 = self.get_image(game_object1), self.get_image(game_object2)
 
-        # Ve em que ponto das imagens esse novo retangulo começa
-        offx1, offy1, o1x, o1y = get_intersection_offsets(intersection_retangle, retangulo1, game_object1)
-        offx2, offy2, o2x, o2y = get_intersection_offsets(intersection_retangle, retangulo2, game_object2)
+            # converte em um tipo mais facil de trabalhar (inicialmente vem como String)
+            p1 = cast(d1[0], POINTER(c_ubyte))
+            p2 = cast(d2[0], POINTER(c_ubyte))
 
-        # Pega as informações dos pixels da imagem
-        d1, d2 = get_image(game_object1), get_image(game_object2)
+            # Pra cada 'pixel' do retângulo de sobreposição vemos se há colição
+            for i in range(0, intersection_retangle.width):
+                for j in range(0, intersection_retangle.height):
+                    c1 = p1[(offx1 + i * o1x) + (offy1 + j * o1y) * d1[1]]
+                    c2 = p2[(offx2 + i * o2x) + (offy2 + j * o2y) * d2[1]]
 
-        # converte em um tipo mais facil de trabalhar (inicialmente vem como String)
-        p1 = cast(d1[0], POINTER(c_ubyte))
-        p2 = cast(d2[0], POINTER(c_ubyte))
+                    # Se os dois pixels forem não transparentes temos uma colisão
+                    if c1 > 0 and c2 > 0:
+                        return True
 
-        # Pra cada 'pixel' do retângulo de sobreposição vemos se há colição
-        for i in range(0, intersection_retangle.width):
-            for j in range(0, intersection_retangle.height):
-                c1 = p1[(offx1 + i * o1x) + (offy1 + j * o1y) * d1[1]]
-                c2 = p2[(offx2 + i * o2x) + (offy2 + j * o2y) * d2[1]]
+        # Caso chegue até aqui não há colisões
+        return False
 
-                # Se os dois pixels forem não transparentes temos uma colisão
-                if c1 > 0 and c2 > 0:
-                    return True
+    def get_intersection_offsets(self, intersection_retangle, image_retangle, game_object):
+        # Ve em que ponto da imagem retangulo de intersecção começa
+        if game_object.scale_x < 0:
+            offx = int(image_retangle.width - (intersection_retangle.x1 - image_retangle.x1) - 1)
+            # object_2_x_orientation
+            ox = -1
+        else:
+            offx = int(intersection_retangle.x1 - image_retangle.x1)
+            # object_2_x_orientation
+            ox = 1
 
-    # Caso chegue até aqui não há colisões
-    return False
+        if game_object.scale_y < 0:
+            offy = int(image_retangle.height - (intersection_retangle.y1 - image_retangle.y1) - 1)
+            # object_2_y_orientation
+            oy = -1
+        else:
+            offy = int(intersection_retangle.y1 - image_retangle.y1)
+            # object_2_y_orientation
+            oy = 1
+        return offx, offy, ox, oy
 
+    def get_image(self, sprite):
+        """Returns the image data for the sprite"""
 
-def get_intersection_offsets(intersection_retangle, image_retangle, game_object):
-    # Ve em que ponto da imagem retangulo de intersecção começa
-    if game_object.scale_x < 0:
-        offx = int(image_retangle.width - (intersection_retangle.x1 - image_retangle.x1) - 1)
-        # object_2_x_orientation
-        ox = -1
-    else:
-        offx = int(intersection_retangle.x1 - image_retangle.x1)
-        # object_2_x_orientation
-        ox = 1
+        # if this is an animated sprite, grab the current frame
+        if sprite._animation:
+            image = sprite._animation.frames[sprite._frame_index].image
+        # otherwise just grab the image
+        else:
+            image = sprite._texture
 
-    if game_object.scale_y < 0:
-        offy = int(image_retangle.height - (intersection_retangle.y1 - image_retangle.y1) - 1)
-        # object_2_y_orientation
-        oy = -1
-    else:
-        offy = int(intersection_retangle.y1 - image_retangle.y1)
-        # object_2_y_orientation
-        oy = 1
-    return offx, offy, ox, oy
+        # if the image is already cached, use the cached copy
+        if image in self.image_data_cache:
+            image_data = self.image_data_cache[image]
+        # otherwise grab the image's alpha channel, and cache it
+        else:
+            image_data = image.get_image_data().get_data('A', image.width)
+            self.image_data_cache[image] = image_data
 
-
-def get_image(sprite):
-    """Returns the image data for the sprite"""
-
-    # if this is an animated sprite, grab the current frame
-    if sprite._animation:
-        image = sprite._animation.frames[sprite._frame_index].image
-    # otherwise just grab the image
-    else:
-        image = sprite._texture
-
-    # if the image is already cached, use the cached copy
-    if image in image_data_cache:
-        image_data = image_data_cache[image]
-    # otherwise grab the image's alpha channel, and cache it
-    else:
-        image_data = image.get_image_data().get_data('A', image.width)
-        image_data_cache[image] = image_data
-
-    # return a tuple containing the image data, along with the width and height
-    return image_data, image.width, image.height
+        # return a tuple containing the image data, along with the width and height
+        return image_data, image.width, image.height

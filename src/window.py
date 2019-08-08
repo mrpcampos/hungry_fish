@@ -3,7 +3,8 @@ from src.fish import Fish
 
 
 class MyWindow(pyglet.window.Window):
-    def __init__(self, hungry_fish, icon_image, background_image, game, frame_rate=1 / 60.0, caption="Título da Janela", *args,
+    def __init__(self, hungry_fish, icon_image, background_image, game, frame_rate=1 / 60.0, caption="Título da Janela",
+                 *args,
                  **kwargs):
 
         self.hungry_fish = hungry_fish
@@ -28,6 +29,13 @@ class MyWindow(pyglet.window.Window):
         self.frame_rate = frame_rate
         self.fps_display = pyglet.window.FPSDisplay(self)
         self.fps_display.label.color = (255, 255, 255, 255)
+
+    def new_batched_label(self, text, x, y, bold=False, italic=False,
+                          color=(255, 255, 255, 255), align='left',
+                          anchor_x='left', anchor_y='baseline'):
+        return pyglet.text.Label(text, x=x, y=y, align=align, bold=bold,
+                                 italic=italic, color=color, anchor_x=anchor_x,
+                                 anchor_y=anchor_y, batch=self.game_batch, group=self.labels_batch_group)
 
     def new_sprite(self, image, x=0, y=0, scale=None):
         if scale is not None:
